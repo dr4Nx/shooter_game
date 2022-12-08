@@ -172,12 +172,12 @@ def check_unpause():
 
 def requires_player_alive(wave=1):
     tempboss.update(player.sprite.get_player_rect())
-    health_message = game_font.render(f'Health: {player.sprite.health} [Esc] to pause', False,
+    health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause', False,
                                       (255 - player.sprite.health / 2,
                                        375 - max(player.sprite.health / 2,
                                                  255 - player.sprite.health / 2),
                                        player.sprite.health / 2))
-    health_message_rect = health_message.get_rect(center=(150, 30))
+    health_message_rect = health_message.get_rect(center=(200, 30))
     window.blit(health_message, health_message_rect)
 
 
