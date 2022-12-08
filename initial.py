@@ -15,10 +15,10 @@ DEFAULTOPPBULLETVEL = 3
 OPPVEL = 2
 sswidth, ssheight = 30, 30
 firerate = 10
-oppfirerate = 20
+oppfirerate = 5
 default_background = (50, 50, 50)
 border_color = (50, 0, 0)
-font_color = (103, 74, 179)
+font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
 
 # Title Screen
@@ -43,7 +43,7 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(player_rect.x + 50, player_rect.y + 15))
 
     def update(self):
-        self.rect.x += (width - self.rect.x)/30 + DEFAULTBULLETVEL
+        self.rect.x += (width - self.rect.x) / 30 + DEFAULTBULLETVEL
         if self.rect.x > width:
             self.kill()
             if self.alive():
@@ -58,7 +58,7 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(origin_rect.x - 20, origin_rect.y + 15))
 
     def update(self):
-        self.rect.x -= DEFAULTOPPBULLETVEL + self.rect.x/50
+        self.rect.x -= DEFAULTOPPBULLETVEL + self.rect.x / 50
         if self.rect.x < 0:
             self.kill()
             if self.alive():
@@ -70,7 +70,7 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join(
             'Assets', 'spaceship_main.png')).convert_alpha(), (sswidth, ssheight)), 270)
-        self.rect = self.image.get_rect(center=(450, 300))
+        self.rect = self.image.get_rect(center=(400, 300))
         self.frames = 0
         self.health = 500
 
@@ -100,13 +100,19 @@ class Player(pygame.sprite.Sprite):
             self.kill()
 
 
+class HealthBar(pygame.sprite.Sprite):
+    def __init__(self, origin):
+        super().__init__()
+        self.image = pygame.Surface([origin.health / 10, 5])
+
+
 class Boss(pygame.sprite.Sprite):
     def __init__(self, health):
         super().__init__()
         self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
                                                                                                    'spaceship_default_opponent.png')).convert_alpha(),
                                                                     (sswidth, ssheight)), 90)
-        self.rect = self.image.get_rect(center=(1000, 300))
+        self.rect = self.image.get_rect(center=(1100, 300))
         self.health = health
         self.frames = 0
 
@@ -164,6 +170,17 @@ def check_unpause():
     return True
 
 
+def requires_player_alive(wave=1):
+    tempboss.update(player.sprite.get_player_rect())
+    health_message = game_font.render(f'Health: {player.sprite.health} [Esc] to pause', False,
+                                      (255 - player.sprite.health / 2,
+                                       375 - max(player.sprite.health / 2,
+                                                 255 - player.sprite.health / 2),
+                                       player.sprite.health / 2))
+    health_message_rect = health_message.get_rect(center=(150, 30))
+    window.blit(health_message, health_message_rect)
+
+
 def main():
     clock = pygame.time.Clock()
     running = True
@@ -206,10 +223,7 @@ def main():
                 player.update()
                 tempboss.draw(window)
                 if player.sprite is not None:
-                    tempboss.update(player.sprite.get_player_rect())
-                    health_message = game_font.render(f'Health: {player.sprite.health}', False, font_color)
-                    health_message_rect = health_message.get_rect(center=(100, 30))
-                    window.blit(health_message, health_message_rect)
+                    requires_player_alive()
                 playerbullets.draw(window)
                 playerbullets.update()
                 enemybullets.draw(window)
