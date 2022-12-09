@@ -15,13 +15,14 @@ DEFAULTBULLETVEL = 3
 DEFAULTOPPBULLETVEL = 3
 OPPVEL = 2
 sswidth, ssheight = 30, 30
-firerate = 2
+firerate = 20
 defaultdamage = 5
 oppfirerate = 30
 default_background = (50, 50, 50)
 border_color = (50, 0, 0)
 font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
+playerhealth = 250
 
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
@@ -75,7 +76,7 @@ class Player(pygame.sprite.Sprite):
             'Assets', 'spaceship_main.png')).convert_alpha(), (sswidth, ssheight)), 270)
         self.rect = self.image.get_rect(center=(400, 300))
         self.frames = 0
-        self.health = 500
+        self.health = playerhealth
 
     def handle_player(self):
         keys_pressed = pygame.key.get_pressed()
@@ -109,14 +110,16 @@ class HealthBar(pygame.sprite.Sprite):
         self.origin = origin
         self.originalhealth = self.origin.health
         self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 10])
-        self.image.fill((255-self.origin.health*255/self.originalhealth, 255*self.origin.health/self.originalhealth, 0))
-        self.rect = self.image.get_rect(center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 10))
+        self.image.fill(
+            (255 - self.origin.health * 255 / self.originalhealth, 255 * self.origin.health / self.originalhealth, 0))
+        self.rect = self.image.get_rect(
+            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 10))
 
     def update(self):
         if self.origin.health <= 0:
             self.kill()
         else:
-            self.image = pygame.Surface([self.origin.health * 80/self.originalhealth, 10])
+            self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 10])
             self.image.fill((255 - self.origin.health * 255 / self.originalhealth,
                              255 * self.origin.health / self.originalhealth, 0))
             self.rect = self.image.get_rect(
@@ -124,7 +127,7 @@ class HealthBar(pygame.sprite.Sprite):
 
 
 class Boss(pygame.sprite.Sprite):
-    def __init__(self, health):
+    def __init__(self, health, truefirerate):
         super().__init__()
         self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
                                                                                                    'spaceship_default_opponent.png')).convert_alpha(),
@@ -132,20 +135,26 @@ class Boss(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(1100, 300))
         self.health = health
         self.frames = 0
+        self.firerate = truefirerate
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
 
     def update(self, player_pos):
         if self.rect.y < player_pos.y:
-            self.rect.y += OPPVEL + randint(0, OPPVEL)
+            self.rect.y += OPPVEL
         if self.rect.y > player_pos.y:
-            self.rect.y -= OPPVEL + randint(0, OPPVEL)
+            self.rect.y -= OPPVEL
         if self.health <= 0:
             self.kill()
         self.frames += 1
-        if self.frames % oppfirerate == 0:
+        if self.frames % self.firerate == 0:
             self.fire()
+
+
+def newboss(wave):
+    tempboss.add(Boss(500, max(oppfirerate - wave, 1)))
+    healthbars.add(HealthBar(tempboss.sprite))
 
 
 def draw_border():
@@ -187,12 +196,12 @@ def check_unpause():
     return True
 
 
-def requires_player_alive(wave=1):
+def requires_player_alive(wave):
     tempboss.update(player.sprite.get_player_rect())
-    health_message = game_font.render(f'Health: {player.sprite.health} [Esc] to pause', False,
-                                      (max(255 - player.sprite.health / 2, 0),
-                                       min(255, player.sprite.health / 2), 0))
-    health_message_rect = health_message.get_rect(center=(150, 30))
+    health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause', False,
+                                      (max(255 - player.sprite.health * 255 / playerhealth, 0),
+                                       min(255, player.sprite.health * 255 / playerhealth), 0))
+    health_message_rect = health_message.get_rect(center=(200, 30))
     window.blit(health_message, health_message_rect)
 
 
@@ -202,6 +211,7 @@ def main():
     game_active = False
     paused = False
     score = 0
+    wave = 0
     while running:
         clock.tick(FPS)
         for event in pygame.event.get():
@@ -216,11 +226,13 @@ def main():
                     tempboss.empty()
                     enemybullets.empty()
                     playerbullets.empty()
+                    healthbars.empty()
                     player.add(Player())
-                    tempboss.add(Boss(5000))
+                    tempboss.add(Boss(10, oppfirerate))
                     healthbars.add(HealthBar(player.sprite))
                     healthbars.add(HealthBar(tempboss.sprite))
                     score = 0
+                    wave = 0
 
         if game_active:
             if paused:
@@ -240,7 +252,10 @@ def main():
                 player.update()
                 tempboss.draw(window)
                 if player.sprite is not None:
-                    requires_player_alive()
+                    requires_player_alive(wave)
+                if tempboss.sprite is None:
+                    wave += 1
+                    newboss(wave)
                 playerbullets.draw(window)
                 playerbullets.update()
                 enemybullets.draw(window)
@@ -253,7 +268,6 @@ def main():
                 draw_border()
                 paused = check_pause()
                 # Health
-
                 game_active = check_player_alive()
                 pygame.display.update()
         else:
