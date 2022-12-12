@@ -69,6 +69,13 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
                 print("Error")
 
 
+class Missile(pygame.sprite.Sprite):
+    def __init__(self, origin_rect):
+        super().__init__()
+        self.image = None
+        self.radius = 10
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
