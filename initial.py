@@ -1,6 +1,7 @@
 import pygame
 import os
 from numpy.random import randint
+import numpy as np
 
 pygame.init()
 
@@ -15,6 +16,8 @@ DEFAULTBULLETVEL = 3
 DEFAULTOPPBULLETVEL = 3
 OPPVEL = 2
 sswidth, ssheight = 30, 30
+bosswidth, bossheight = 50, 50
+missilewidth, missileheight = 20, 20
 firerate = 20
 defaultdamage = 5
 oppfirerate = 30
@@ -27,6 +30,7 @@ playerhealth = 250
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
 player_title = pygame.transform.rotozoom(player_title, 270, 2)
+
 player_title_rect = player_title.get_rect(center=(600, 100))
 
 game_message = test_font.render('Press space to begin', False, font_color)
@@ -37,6 +41,7 @@ playerbullets = pygame.sprite.Group()
 enemybullets = pygame.sprite.Group()
 tempboss = pygame.sprite.GroupSingle()
 healthbars = pygame.sprite.Group()
+enemymissiles = pygame.sprite.Group()
 
 
 class PlayerBullet(pygame.sprite.Sprite):
@@ -59,7 +64,7 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.Surface([15, 3])
         self.image.fill((255, 100, 100))
-        self.rect = self.image.get_rect(center=(origin_rect.x - 20, origin_rect.y + 15))
+        self.rect = self.image.get_rect(center=(origin_rect.x - 20, origin_rect.y + origin_rect.height / 2))
 
     def update(self):
         self.rect.x -= DEFAULTOPPBULLETVEL + self.rect.x / 50
@@ -69,11 +74,28 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
                 print("Error")
 
 
-class Missile(pygame.sprite.Sprite):
+class EnemyMissile(pygame.sprite.Sprite):
     def __init__(self, origin_rect):
         super().__init__()
-        self.image = None
-        self.radius = 10
+        self.image = self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join(
+            'Assets', 'spaceship_main.png')).convert_alpha(), (missilewidth, missileheight)), 270)
+        self.rect = self.image.get_rect(center=(origin_rect.centerx, origin_rect.centery))
+        self.moves = 0
+        self.distx = 0
+        self.disty = 0
+        self.x = -5
+        self.y = 0
+
+    def rotate(self, player_loc):
+        self.distx = player_loc.x - self.rect.x
+        self.disty = player_loc.y - self.rect.y
+
+    def move(self):
+        pass
+
+    def update(self, player_loc):
+        self.rotate(player_loc)
+        self.move()
 
 
 class Player(pygame.sprite.Sprite):
@@ -83,6 +105,7 @@ class Player(pygame.sprite.Sprite):
             'Assets', 'spaceship_main.png')).convert_alpha(), (sswidth, ssheight)), 270)
         self.rect = self.image.get_rect(center=(400, 300))
         self.frames = 0
+        self.radius = 15
         self.health = playerhealth
 
     def handle_player(self):
@@ -138,7 +161,7 @@ class Boss(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
                                                                                                    'spaceship_default_opponent.png')).convert_alpha(),
-                                                                    (sswidth, ssheight)), 90)
+                                                                    (bosswidth, bossheight)), 90)
         self.rect = self.image.get_rect(center=(1100, 300))
         self.health = health
         self.frames = 0
@@ -146,6 +169,7 @@ class Boss(pygame.sprite.Sprite):
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
+        # enemymissiles.add(EnemyMissile(self.rect))
 
     def update(self, player_pos):
         if self.rect.y < player_pos.y:
@@ -205,6 +229,8 @@ def check_unpause():
 
 def requires_player_alive(wave):
     tempboss.update(player.sprite.get_player_rect())
+    enemymissiles.update(player.sprite.get_player_rect())
+
     health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause', False,
                                       (max(255 - player.sprite.health * 255 / playerhealth, 0),
                                        min(255, player.sprite.health * 255 / playerhealth), 0))
@@ -267,6 +293,7 @@ def main():
                 playerbullets.update()
                 enemybullets.draw(window)
                 enemybullets.update()
+                enemymissiles.draw(window)
                 healthbars.draw(window)
                 healthbars.update()
                 if detect_player_hits():
