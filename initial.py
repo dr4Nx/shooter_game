@@ -12,14 +12,16 @@ test_font = pygame.font.Font('Fonts/pixel_font.ttf', 50)
 game_font = pygame.font.Font('Fonts/pixel_font.ttf', 10)
 FPS = 60
 VEL = 4
-DEFAULTBULLETVEL = 3
-DEFAULTOPPBULLETVEL = 3
+DEFAULTBULLETVEL = 8
+DEFAULTOPPBULLETVEL = 8
 OPPVEL = 2
+MISSILEVEL = 6
 sswidth, ssheight = 30, 30
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
 firerate = 20
 defaultdamage = 5
+defaultmissiledamage = 20
 oppfirerate = 30
 default_background = (50, 50, 50)
 border_color = (50, 0, 0)
@@ -52,7 +54,7 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(player_rect.x + 50, player_rect.y + 15))
 
     def update(self):
-        self.rect.x += (width - self.rect.x) / 30 + DEFAULTBULLETVEL
+        self.rect.x += DEFAULTBULLETVEL
         if self.rect.x > width:
             self.kill()
             if self.alive():
@@ -67,7 +69,7 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(origin_rect.x - 20, origin_rect.y + origin_rect.height / 2))
 
     def update(self):
-        self.rect.x -= DEFAULTOPPBULLETVEL + self.rect.x / 50
+        self.rect.x -= DEFAULTOPPBULLETVEL
         if self.rect.x < 0:
             self.kill()
             if self.alive():
@@ -77,25 +79,42 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
 class EnemyMissile(pygame.sprite.Sprite):
     def __init__(self, origin_rect):
         super().__init__()
-        self.image = self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join(
-            'Assets', 'spaceship_main.png')).convert_alpha(), (missilewidth, missileheight)), 270)
+        self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
+            'Assets', 'idlemissile.png')).convert_alpha(), (missilewidth, missileheight))
         self.rect = self.image.get_rect(center=(origin_rect.centerx, origin_rect.centery))
         self.moves = 0
         self.distx = 0
         self.disty = 0
-        self.x = -5
-        self.y = 0
+        self.totalvel = MISSILEVEL
+        self.xvel = -MISSILEVEL
+        self.yvel = 0
+        self.frames = 0
 
     def rotate(self, player_loc):
         self.distx = player_loc.x - self.rect.x
         self.disty = player_loc.y - self.rect.y
+        self.xvel = np.round(self.totalvel * (self.distx + 1) / (abs(self.distx) + abs(self.disty) + 1))
+        self.yvel = np.round(self.totalvel * (self.disty + 1) / (abs(self.distx) + abs(self.disty) + 1))
 
     def move(self):
-        pass
+        self.rect.x += self.xvel
+        self.rect.y += self.yvel
 
     def update(self, player_loc):
-        self.rotate(player_loc)
+        self.frames += 1
+        if self.frames % 5 == 0 and self.totalvel > 6:
+            self.totalvel -= 2
+            self.xvel -= 2
+        if 50 < self.frames < 200:
+            self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
+                'Assets', 'activemissile.png')).convert_alpha(), (missilewidth, missileheight))
+            self.rotate(player_loc)
+        else:
+            self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
+                'Assets', 'idlemissile.png')).convert_alpha(), (missilewidth, missileheight))
         self.move()
+        if self.frames > 300:
+            self.kill()
 
 
 class Player(pygame.sprite.Sprite):
@@ -169,7 +188,8 @@ class Boss(pygame.sprite.Sprite):
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
-        # enemymissiles.add(EnemyMissile(self.rect))
+        if self.frames % 3 == 0:
+            enemymissiles.add(EnemyMissile(self.rect))
 
     def update(self, player_pos):
         if self.rect.y < player_pos.y:
@@ -203,6 +223,13 @@ def detect_opponent_hits():
     if player.sprite is not None:
         if pygame.sprite.spritecollide(player.sprite, enemybullets, True):
             player.sprite.health -= defaultdamage
+        if pygame.sprite.spritecollide(player.sprite, enemymissiles, True):
+            player.sprite.health -= defaultmissiledamage
+
+
+def detect_missile_collision():
+    if pygame.sprite.groupcollide(playerbullets, enemymissiles, True, True):
+        pass
 
 
 def check_player_alive():
@@ -299,6 +326,7 @@ def main():
                 if detect_player_hits():
                     score += defaultdamage
                 detect_opponent_hits()
+                detect_missile_collision()
                 draw_border()
                 paused = check_pause()
                 # Health
