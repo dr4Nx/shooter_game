@@ -1,3 +1,5 @@
+import random
+
 import pygame
 import os
 from numpy.random import randint
@@ -15,11 +17,11 @@ VEL = 4
 DEFAULTBULLETVEL = 8
 DEFAULTOPPBULLETVEL = 8
 OPPVEL = 2
-MISSILEVEL = 6
+MISSILEVEL = 1
 sswidth, ssheight = 30, 30
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
-firerate = 20
+firerate = 15
 defaultdamage = 5
 defaultmissiledamage = 20
 oppfirerate = 30
@@ -86,8 +88,8 @@ class EnemyMissile(pygame.sprite.Sprite):
         self.distx = 0
         self.disty = 0
         self.totalvel = MISSILEVEL
-        self.xvel = -MISSILEVEL
-        self.yvel = 0
+        self.xvel = 0
+        self.yvel = random.choice([2, 4, -2, -4])
         self.frames = 0
 
     def rotate(self, player_loc):
@@ -102,9 +104,9 @@ class EnemyMissile(pygame.sprite.Sprite):
 
     def update(self, player_loc):
         self.frames += 1
-        if self.frames % 5 == 0 and self.totalvel > 6:
-            self.totalvel -= 2
-            self.xvel -= 2
+        if self.frames % 5 == 0 and self.frames > 20 and self.totalvel < 6:
+            self.totalvel += 0.5
+            self.xvel -= 0.5
         if 50 < self.frames < 200:
             self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
                 'Assets', 'activemissile.png')).convert_alpha(), (missilewidth, missileheight))
@@ -113,7 +115,7 @@ class EnemyMissile(pygame.sprite.Sprite):
             self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
                 'Assets', 'idlemissile.png')).convert_alpha(), (missilewidth, missileheight))
         self.move()
-        if self.frames > 300:
+        if self.frames > 500:
             self.kill()
 
 
@@ -185,11 +187,13 @@ class Boss(pygame.sprite.Sprite):
         self.health = health
         self.frames = 0
         self.firerate = truefirerate
+        self.missilefirerate = 10*truefirerate
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
-        if self.frames % 3 == 0:
-            enemymissiles.add(EnemyMissile(self.rect))
+
+    def missilefire(self):
+        enemymissiles.add(EnemyMissile(self.rect))
 
     def update(self, player_pos):
         if self.rect.y < player_pos.y:
@@ -201,6 +205,8 @@ class Boss(pygame.sprite.Sprite):
         self.frames += 1
         if self.frames % self.firerate == 0:
             self.fire()
+        if self.frames % self.missilefirerate <= 30+self.missilefirerate/3 and self.frames % 10 == 0:
+            self.missilefire()
 
 
 def newboss(wave):
@@ -285,14 +291,15 @@ def main():
                     player.empty()
                     tempboss.empty()
                     enemybullets.empty()
+                    enemymissiles.empty()
                     playerbullets.empty()
                     healthbars.empty()
                     player.add(Player())
-                    tempboss.add(Boss(10, oppfirerate))
+                    newboss(1)
                     healthbars.add(HealthBar(player.sprite))
                     healthbars.add(HealthBar(tempboss.sprite))
                     score = 0
-                    wave = 0
+                    wave = 1
 
         if game_active:
             if paused:
