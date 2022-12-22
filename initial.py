@@ -21,6 +21,7 @@ MISSILEVEL = 1
 sswidth, ssheight = 30, 30
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
+playermaxcharge = 180
 firerate = 15
 defaultdamage = 5
 defaultmissiledamage = 20
@@ -128,6 +129,8 @@ class Player(pygame.sprite.Sprite):
         self.frames = 0
         self.radius = 15
         self.health = playerhealth
+        self.chargebar = playermaxcharge
+        self.maxcharge = playermaxcharge
 
     def handle_player(self):
         keys_pressed = pygame.key.get_pressed()
@@ -153,6 +156,18 @@ class Player(pygame.sprite.Sprite):
             self.fire()
         if self.health <= 0:
             self.kill()
+
+
+class SuperFireBar(pygame.sprite.Sprite):
+    def __init__(self, origin):
+        super().__init__()
+        self.origin = origin
+        self.image = pygame.Surface([self.origin.chargebar * 500 / self.origin.maxcharge, 100])
+        self.image.fill((0, 0, 255))
+        self.rect = self.image.get_rect(topleft=(width - 530, height + 30))
+
+    def update(self):
+        pass
 
 
 class HealthBar(pygame.sprite.Sprite):
