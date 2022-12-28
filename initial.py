@@ -1,3 +1,4 @@
+import math
 import random
 
 import pygame
@@ -42,6 +43,7 @@ game_message = test_font.render('Press space to begin', False, font_color)
 game_message_rect = game_message.get_rect(center=(600, 300))
 
 player = pygame.sprite.GroupSingle()
+firebar = pygame.sprite.GroupSingle()
 playerbullets = pygame.sprite.Group()
 enemybullets = pygame.sprite.Group()
 tempboss = pygame.sprite.GroupSingle()
@@ -131,6 +133,8 @@ class Player(pygame.sprite.Sprite):
         self.health = playerhealth
         self.chargebar = playermaxcharge
         self.maxcharge = playermaxcharge
+        self.chargeframes = 120
+        self.truefire = firerate
 
     def handle_player(self):
         keys_pressed = pygame.key.get_pressed()
@@ -143,6 +147,20 @@ class Player(pygame.sprite.Sprite):
         if keys_pressed[pygame.K_s] and self.rect.y + VEL + self.rect.height < height:
             self.rect.y += VEL
 
+    def handle_firebar(self):
+        keys_pressed = pygame.key.get_pressed()
+        if keys_pressed[pygame.K_SPACE] and self.chargebar > 0:
+            self.chargeframes = 0
+            self.truefire = math.floor(firerate / 3)
+            self.chargebar -= 1
+        elif self.chargeframes < 120:
+            self.chargeframes += 1
+            self.truefire = firerate
+        else:
+            if self.chargebar < playermaxcharge:
+                self.chargebar += 1
+            self.truefire = firerate
+
     def get_player_rect(self):
         return self.rect
 
@@ -151,8 +169,9 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.handle_player()
+        self.handle_firebar()
         self.frames += 1
-        if self.frames % firerate == 0:
+        if self.frames % self.truefire == 0:
             self.fire()
         if self.health <= 0:
             self.kill()
@@ -162,12 +181,20 @@ class SuperFireBar(pygame.sprite.Sprite):
     def __init__(self, origin):
         super().__init__()
         self.origin = origin
-        self.image = pygame.Surface([self.origin.chargebar * 500 / self.origin.maxcharge, 100])
-        self.image.fill((0, 0, 255))
-        self.rect = self.image.get_rect(topleft=(width - 530, height + 30))
+        self.image = pygame.Surface([self.origin.chargebar * 80 / self.origin.maxcharge, 8])
+        self.image.fill((100, 100, 255))
+        self.rect = self.image.get_rect(
+            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 10))
 
     def update(self):
-        pass
+        self.image = pygame.Surface([self.origin.chargebar * 80 / self.origin.maxcharge, 8])
+        if self.origin.maxcharge == self.origin.chargebar:
+            self.image.fill((255, 255, 100))
+        else:
+            self.image.fill((100, 100, 255))
+
+        self.rect = self.image.get_rect(
+            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 30))
 
 
 class HealthBar(pygame.sprite.Sprite):
@@ -202,7 +229,7 @@ class Boss(pygame.sprite.Sprite):
         self.health = health
         self.frames = 0
         self.firerate = truefirerate
-        self.missilefirerate = 10*truefirerate
+        self.missilefirerate = 10 * truefirerate
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
@@ -220,7 +247,7 @@ class Boss(pygame.sprite.Sprite):
         self.frames += 1
         if self.frames % self.firerate == 0:
             self.fire()
-        if self.frames % self.missilefirerate <= 30+self.missilefirerate/3 and self.frames % 10 == 0:
+        if self.frames % self.missilefirerate <= 30 + self.missilefirerate / 3 and self.frames % 10 == 0:
             self.missilefire()
 
 
@@ -279,7 +306,7 @@ def requires_player_alive(wave):
     tempboss.update(player.sprite.get_player_rect())
     enemymissiles.update(player.sprite.get_player_rect())
 
-    health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause', False,
+    health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause [Space] to fast fire', False,
                                       (max(255 - player.sprite.health * 255 / playerhealth, 0),
                                        min(255, player.sprite.health * 255 / playerhealth), 0))
     health_message_rect = health_message.get_rect(center=(200, 30))
@@ -304,12 +331,14 @@ def main():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     game_active = True
                     player.empty()
+                    firebar.empty()
                     tempboss.empty()
                     enemybullets.empty()
                     enemymissiles.empty()
                     playerbullets.empty()
                     healthbars.empty()
                     player.add(Player())
+                    firebar.add(SuperFireBar(player.sprite))
                     newboss(1)
                     healthbars.add(HealthBar(player.sprite))
                     healthbars.add(HealthBar(tempboss.sprite))
@@ -332,6 +361,8 @@ def main():
                 window.fill(default_background)
                 player.draw(window)
                 player.update()
+                firebar.draw(window)
+                firebar.update()
                 tempboss.draw(window)
                 if player.sprite is not None:
                     requires_player_alive(wave)
