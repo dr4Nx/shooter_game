@@ -32,7 +32,7 @@ border_color = (50, 0, 0)
 font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
 playerhealth = 250
-
+defaultenemyhealth = 15
 
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
@@ -196,7 +196,7 @@ class SuperFireBar(pygame.sprite.Sprite):
             self.image.fill((100, 100, 255))
 
         self.rect = self.image.get_rect(
-            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 30))
+            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 20))
 
 
 class HealthBar(pygame.sprite.Sprite):
@@ -204,7 +204,7 @@ class HealthBar(pygame.sprite.Sprite):
         super().__init__()
         self.origin = origin
         self.originalhealth = self.origin.health
-        self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 10])
+        self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 5])
         self.image.fill(
             (255 - self.origin.health * 255 / self.originalhealth, 255 * self.origin.health / self.originalhealth, 0))
         self.rect = self.image.get_rect(
@@ -216,7 +216,7 @@ class HealthBar(pygame.sprite.Sprite):
         if self.rect.centerx <= 15:
             self.kill()
         else:
-            self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 10])
+            self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 5])
             self.image.fill((255 - self.origin.health * 255 / self.originalhealth,
                              255 * self.origin.health / self.originalhealth, 0))
             self.rect = self.image.get_rect(
@@ -232,23 +232,49 @@ class EnemyDefault(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
         self.frames = 0
-        self.firerate = truefirerate * random.choice([1, 2, 2.5, 3, 3.5, 4, 4.5, 5])
+        self.firerate = truefirerate * random.choice([0.5, 1, 1.5, 2, 2, 2, 2, 2.5, 3, 3.5, 4, 4.5, 5])
+        self.speed = random.choice([1, 2, 3])
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
 
     def update(self, player_pos):
-        self.frames += 1
-        if self.frames < 50:
-            self.rect.x -= 2
+        if self.frames < 50 or self.frames > 600:
+            self.rect.x -= self.speed
         if self.frames % self.firerate == 0:
             self.fire()
-        if self.frames > 600:
-            self.rect.x -= 10
         if self.health <= 0:
             self.kill()
         if self.rect.x < 0:
             self.kill()
+        self.frames += 1
+
+
+class EnemyDefaultMissile(pygame.sprite.Sprite):
+    def __init__(self, health, truefirerate, startingy):
+        super().__init__()
+        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
+                                                                                                   'spaceship_missile.png')).convert_alpha(),
+                                                                    (sswidth, ssheight)), 90)
+        self.rect = self.image.get_rect(center=(width, startingy))
+        self.health = health
+        self.frames = 0
+        self.speed = random.choice([1, 2, 3])
+        self.firerate = truefirerate * 2 * random.choice([3, 3.5, 4, 4.5, 5])
+
+    def fire(self):
+        enemymissiles.add(EnemyMissile(self.rect))
+
+    def update(self, player_pos):
+        if self.frames < 50 or self.frames > 600:
+            self.rect.x -= self.speed
+        if self.frames % self.firerate < 20 and self.frames % 10 == 0:
+            self.fire()
+        if self.health <= 0:
+            self.kill()
+        if self.rect.x < 0:
+            self.kill()
+        self.frames += 1
 
 
 class Boss(pygame.sprite.Sprite):
@@ -287,7 +313,11 @@ def newwave(wave):
     templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
     for i in range(wave % 13):
         location = random.choice(templocs)
-        enemies.add(EnemyDefault(10, oppfirerate, location))
+        choices = [EnemyDefault(defaultenemyhealth, oppfirerate, location),
+                   EnemyDefault(defaultenemyhealth, oppfirerate, location),
+                   EnemyDefault(defaultenemyhealth, oppfirerate, location),
+                   EnemyDefaultMissile(defaultenemyhealth, oppfirerate, location)]
+        enemies.add(random.choice(choices))
         templocs.remove(location)
     for sprite in enemies:
         healthbars.add(HealthBar(sprite))
@@ -297,6 +327,7 @@ def newboss(wave):
     enemies.add(Boss(500, max(oppfirerate - wave, 1)))
     for sprite in enemies:
         healthbars.add(HealthBar(sprite))
+
 
 def draw_border():
     pygame.draw.rect(window, border_color, border)
@@ -412,6 +443,7 @@ def main():
                 if player.sprite is not None:
                     requires_player_alive(wave)
                 if len(enemies.sprites()) == 0:
+                    score += wave * 20
                     wave += 1
                     if wave % 13 == 0:
                         newboss(wave)
