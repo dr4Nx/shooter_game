@@ -33,6 +33,7 @@ font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
 playerhealth = 250
 
+
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
 player_title = pygame.transform.rotozoom(player_title, 270, 2)
@@ -47,6 +48,7 @@ firebar = pygame.sprite.GroupSingle()
 playerbullets = pygame.sprite.Group()
 enemybullets = pygame.sprite.Group()
 tempboss = pygame.sprite.GroupSingle()
+enemies = pygame.sprite.Group()
 healthbars = pygame.sprite.Group()
 enemymissiles = pygame.sprite.Group()
 
@@ -211,12 +213,42 @@ class HealthBar(pygame.sprite.Sprite):
     def update(self):
         if self.origin.health <= 0:
             self.kill()
+        if self.rect.centerx <= 15:
+            self.kill()
         else:
             self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 10])
             self.image.fill((255 - self.origin.health * 255 / self.originalhealth,
                              255 * self.origin.health / self.originalhealth, 0))
             self.rect = self.image.get_rect(
                 center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 10))
+
+
+class EnemyDefault(pygame.sprite.Sprite):
+    def __init__(self, health, truefirerate, startingy):
+        super().__init__()
+        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
+                                                                                                   'spaceship_default_opponent.png')).convert_alpha(),
+                                                                    (sswidth, ssheight)), 90)
+        self.rect = self.image.get_rect(center=(width, startingy))
+        self.health = health
+        self.frames = 0
+        self.firerate = truefirerate * random.choice([1, 2, 2.5, 3, 3.5, 4, 4.5, 5])
+
+    def fire(self):
+        enemybullets.add(StandardEnemyBullet(self.rect))
+
+    def update(self, player_pos):
+        self.frames += 1
+        if self.frames < 50:
+            self.rect.x -= 2
+        if self.frames % self.firerate == 0:
+            self.fire()
+        if self.frames > 600:
+            self.rect.x -= 10
+        if self.health <= 0:
+            self.kill()
+        if self.rect.x < 0:
+            self.kill()
 
 
 class Boss(pygame.sprite.Sprite):
@@ -251,20 +283,32 @@ class Boss(pygame.sprite.Sprite):
             self.missilefire()
 
 
-def newboss(wave):
-    tempboss.add(Boss(500, max(oppfirerate - wave, 1)))
-    healthbars.add(HealthBar(tempboss.sprite))
+def newwave(wave):
+    templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
+    for i in range(wave % 13):
+        location = random.choice(templocs)
+        enemies.add(EnemyDefault(10, oppfirerate, location))
+        templocs.remove(location)
+    for sprite in enemies:
+        healthbars.add(HealthBar(sprite))
 
+
+def newboss(wave):
+    enemies.add(Boss(500, max(oppfirerate - wave, 1)))
+    for sprite in enemies:
+        healthbars.add(HealthBar(sprite))
 
 def draw_border():
     pygame.draw.rect(window, border_color, border)
 
 
 def detect_player_hits():
-    if tempboss.sprite is not None:
-        if pygame.sprite.spritecollide(tempboss.sprite, playerbullets, True):
-            tempboss.sprite.health -= defaultdamage
-            return True
+    collisions = pygame.sprite.groupcollide(enemies, playerbullets, False, True)
+    for enemy in collisions:
+        enemy.health -= 5
+        return True
+    if pygame.sprite.groupcollide(player, enemies, True, True):
+        print('L')
 
 
 def detect_opponent_hits():
@@ -303,13 +347,15 @@ def check_unpause():
 
 
 def requires_player_alive(wave):
-    tempboss.update(player.sprite.get_player_rect())
+    enemies.update(player.sprite.get_player_rect())
     enemymissiles.update(player.sprite.get_player_rect())
+    healthbars.update()
 
-    health_message = game_font.render(f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause [Space] to fast fire', False,
-                                      (max(255 - player.sprite.health * 255 / playerhealth, 0),
-                                       min(255, player.sprite.health * 255 / playerhealth), 0))
-    health_message_rect = health_message.get_rect(center=(200, 30))
+    health_message = game_font.render(
+        f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause [Space] to shoot', False,
+        (max(255 - player.sprite.health * 255 / playerhealth, 0),
+         min(255, player.sprite.health * 255 / playerhealth), 0))
+    health_message_rect = health_message.get_rect(center=(300, 30))
     window.blit(health_message, health_message_rect)
 
 
@@ -332,16 +378,15 @@ def main():
                     game_active = True
                     player.empty()
                     firebar.empty()
-                    tempboss.empty()
+                    enemies.empty()
                     enemybullets.empty()
                     enemymissiles.empty()
                     playerbullets.empty()
                     healthbars.empty()
                     player.add(Player())
                     firebar.add(SuperFireBar(player.sprite))
-                    newboss(1)
+                    newwave(1)
                     healthbars.add(HealthBar(player.sprite))
-                    healthbars.add(HealthBar(tempboss.sprite))
                     score = 0
                     wave = 1
 
@@ -363,19 +408,21 @@ def main():
                 player.update()
                 firebar.draw(window)
                 firebar.update()
-                tempboss.draw(window)
+                enemies.draw(window)
                 if player.sprite is not None:
                     requires_player_alive(wave)
-                if tempboss.sprite is None:
+                if len(enemies.sprites()) == 0:
                     wave += 1
-                    newboss(wave)
+                    if wave % 13 == 0:
+                        newboss(wave)
+                    else:
+                        newwave(wave)
                 playerbullets.draw(window)
                 playerbullets.update()
                 enemybullets.draw(window)
                 enemybullets.update()
                 enemymissiles.draw(window)
                 healthbars.draw(window)
-                healthbars.update()
                 if detect_player_hits():
                     score += defaultdamage
                 detect_opponent_hits()
