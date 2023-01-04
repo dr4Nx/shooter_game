@@ -27,7 +27,7 @@ firerate = 15
 defaultdamage = 5
 defaultmissiledamage = 20
 oppfirerate = 30
-default_background = (50, 50, 50)
+default_background = pygame.transform.scale(pygame.image.load('Assets/background.png'), (width, height)).convert_alpha()
 border_color = (50, 0, 0)
 font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
@@ -250,6 +250,11 @@ class EnemyDefault(pygame.sprite.Sprite):
         self.frames += 1
 
 
+class HealthPack(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+
 class EnemyDefaultMissile(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate, startingy):
         super().__init__()
@@ -423,7 +428,7 @@ def main():
 
         if game_active:
             if paused:
-                window.fill(default_background)
+                window.blit(default_background, (0, 0))
                 pause_message = test_font.render('Press space to continue', False, font_color)
                 pause_message_rect = pause_message.get_rect(center=(600, 300))
                 score_message = test_font.render(f'Your current score: {score}', False, font_color)
@@ -434,7 +439,7 @@ def main():
                 pygame.display.update()
                 paused = check_unpause()
             else:
-                window.fill(default_background)
+                window.blit(default_background, (0, 0))
                 player.draw(window)
                 player.update()
                 firebar.draw(window)
@@ -467,7 +472,7 @@ def main():
         else:
             score_message = test_font.render(f'Your last score: {score}', False, font_color)
             score_message_rect = score_message.get_rect(center=(600, 500))
-            window.fill(default_background)
+            window.blit(default_background, (0, 0))
             window.blit(player_title, player_title_rect)
             window.blit(game_message, game_message_rect)
             window.blit(score_message, score_message_rect)
