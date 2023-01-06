@@ -33,6 +33,7 @@ font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
 playerhealth = 250
 defaultenemyhealth = 15
+healthpackspawn=15
 
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
@@ -51,6 +52,7 @@ tempboss = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 healthbars = pygame.sprite.Group()
 enemymissiles = pygame.sprite.Group()
+healthpacks = pygame.sprite.Group()
 
 
 class PlayerBullet(pygame.sprite.Sprite):
@@ -81,6 +83,20 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
             self.kill()
             if self.alive():
                 print("Error")
+
+
+class HealthPack(pygame.sprite.Sprite):
+    def __init__(self, rect):
+        super().__init__()
+        self.image = pygame.transform.rotate(
+            pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'healthpack.png')).convert_alpha(),
+                                   (missilewidth, missileheight)), 90)
+        self.rect = self.image.get_rect(center=(rect.centerx, rect.centery))
+
+    def update(self):
+        self.rect.x -= OPPVEL
+        if self.rect.x < 0:
+            self.kill()
 
 
 class EnemyMissile(pygame.sprite.Sprite):
@@ -245,14 +261,12 @@ class EnemyDefault(pygame.sprite.Sprite):
             self.fire()
         if self.health <= 0:
             self.kill()
+            randnum = np.random.randint(low=1, high=healthpackspawn)
+            if randnum == 2:
+                healthpacks.add(HealthPack(self.rect))
         if self.rect.x < 0:
             self.kill()
         self.frames += 1
-
-
-class HealthPack(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
 
 
 class EnemyDefaultMissile(pygame.sprite.Sprite):
@@ -277,6 +291,10 @@ class EnemyDefaultMissile(pygame.sprite.Sprite):
             self.fire()
         if self.health <= 0:
             self.kill()
+            randnum = np.random.randint(low=1, high=healthpackspawn)
+            if randnum == 2:
+                healthpacks.add(HealthPack(self.rect))
+
         if self.rect.x < 0:
             self.kill()
         self.frames += 1
@@ -293,6 +311,7 @@ class Boss(pygame.sprite.Sprite):
         self.frames = 0
         self.firerate = truefirerate
         self.missilefirerate = 10 * truefirerate
+        healthpacks.add(HealthPack(self.rect))
 
     def fire(self):
         enemybullets.add(StandardEnemyBullet(self.rect))
@@ -306,7 +325,10 @@ class Boss(pygame.sprite.Sprite):
         if self.rect.y > player_pos.y:
             self.rect.y -= OPPVEL
         if self.health <= 0:
+            healthpacks.add(HealthPack(self.rect))
+
             self.kill()
+
         self.frames += 1
         if self.frames % self.firerate == 0:
             self.fire()
@@ -318,10 +340,10 @@ def newwave(wave):
     templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
     for i in range(wave % 13):
         location = random.choice(templocs)
-        choices = [EnemyDefault(defaultenemyhealth, oppfirerate, location),
-                   EnemyDefault(defaultenemyhealth, oppfirerate, location),
-                   EnemyDefault(defaultenemyhealth, oppfirerate, location),
-                   EnemyDefaultMissile(defaultenemyhealth, oppfirerate, location)]
+        choices = [EnemyDefault(defaultenemyhealth + 5*(wave //13), oppfirerate - 2*(wave // 13), location),
+                   EnemyDefault(defaultenemyhealth+5*(wave//13), oppfirerate - 2*(wave // 13), location),
+                   EnemyDefault(defaultenemyhealth+5*(wave//13), oppfirerate - 2*(wave // 13), location),
+                   EnemyDefaultMissile(defaultenemyhealth+10*(wave//13), oppfirerate - 2*(wave // 13), location)]
         enemies.add(random.choice(choices))
         templocs.remove(location)
     for sprite in enemies:
@@ -329,7 +351,7 @@ def newwave(wave):
 
 
 def newboss(wave):
-    enemies.add(Boss(500, max(oppfirerate - wave, 1)))
+    enemies.add(Boss(500+100*(wave//13), max(oppfirerate - 2*(wave // 13), 1)))
     for sprite in enemies:
         healthbars.add(HealthBar(sprite))
 
@@ -353,6 +375,12 @@ def detect_opponent_hits():
             player.sprite.health -= defaultdamage
         if pygame.sprite.spritecollide(player.sprite, enemymissiles, True):
             player.sprite.health -= defaultmissiledamage
+
+
+def detect_health_packs():
+    if player.sprite is not None:
+        if pygame.sprite.spritecollide(player.sprite, healthpacks, True):
+            player.sprite.health = min(playerhealth, player.sprite.health + 50)
 
 
 def detect_missile_collision():
@@ -458,12 +486,15 @@ def main():
                 playerbullets.update()
                 enemybullets.draw(window)
                 enemybullets.update()
+                healthpacks.update()
                 enemymissiles.draw(window)
                 healthbars.draw(window)
+                healthpacks.draw(window)
                 if detect_player_hits():
                     score += defaultdamage
                 detect_opponent_hits()
                 detect_missile_collision()
+                detect_health_packs()
                 draw_border()
                 paused = check_pause()
                 # Health
