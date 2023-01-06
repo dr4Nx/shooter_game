@@ -13,6 +13,7 @@ window = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Space Runner')
 test_font = pygame.font.Font('Fonts/pixel_font.ttf', 50)
 game_font = pygame.font.Font('Fonts/pixel_font.ttf', 10)
+score_font = pygame.font.Font('Fonts/pixel_font.ttf', 20)
 FPS = 60
 VEL = 4
 DEFAULTBULLETVEL = 8
@@ -33,7 +34,7 @@ font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
 playerhealth = 250
 defaultenemyhealth = 15
-healthpackspawn=15
+healthpackspawn = 15
 
 # Title Screen
 player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
@@ -410,7 +411,7 @@ def check_unpause():
     return True
 
 
-def requires_player_alive(wave):
+def requires_player_alive(wave, score):
     enemies.update(player.sprite.get_player_rect())
     enemymissiles.update(player.sprite.get_player_rect())
     healthbars.update()
@@ -420,7 +421,10 @@ def requires_player_alive(wave):
         (max(255 - player.sprite.health * 255 / playerhealth, 0),
          min(255, player.sprite.health * 255 / playerhealth), 0))
     health_message_rect = health_message.get_rect(center=(300, 30))
+    score_message = score_font.render(f'Score: {score}', False, (255, 255, 255))
+    score_message_rect = score_message.get_rect(center=(width-150, 50))
     window.blit(health_message, health_message_rect)
+    window.blit(score_message, score_message_rect)
 
 
 def main():
@@ -474,7 +478,7 @@ def main():
                 firebar.update()
                 enemies.draw(window)
                 if player.sprite is not None:
-                    requires_player_alive(wave)
+                    requires_player_alive(wave, score)
                 if len(enemies.sprites()) == 0:
                     score += wave * 20
                     wave += 1
