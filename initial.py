@@ -472,10 +472,14 @@ def main():
                 paused = check_unpause()
             else:
                 window.blit(default_background, (0, 0))
-                player.draw(window)
+                enemybullets.update()
+                healthpacks.update()
                 player.update()
-                firebar.draw(window)
                 firebar.update()
+                playerbullets.update()
+
+                player.draw(window)
+                firebar.draw(window)
                 enemies.draw(window)
                 if player.sprite is not None:
                     requires_player_alive(wave, score)
@@ -487,10 +491,7 @@ def main():
                     else:
                         newwave(wave)
                 playerbullets.draw(window)
-                playerbullets.update()
                 enemybullets.draw(window)
-                enemybullets.update()
-                healthpacks.update()
                 enemymissiles.draw(window)
                 healthbars.draw(window)
                 healthpacks.draw(window)
