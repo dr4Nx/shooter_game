@@ -301,6 +301,11 @@ class EnemyDefaultMissile(pygame.sprite.Sprite):
         self.frames += 1
 
 
+
+
+
+
+
 class Boss(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate):
         super().__init__()
