@@ -8,6 +8,7 @@ import numpy as np
 
 pygame.init()
 
+spawnshipevent = pygame.USEREVENT + 1
 width, height = 1200, 600
 window = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Space Runner')
@@ -86,6 +87,33 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
                 print("Error")
 
 
+class TargetedEnemyBullet(pygame.sprite.Sprite):
+    def __init__(self, origin_rect, target_point):
+        super().__init__()
+        self.image = pygame.Surface([10, 10])
+        self.image.fill((255, 100, 100))
+        self.rect = self.image.get_rect(center=(origin_rect.x - 15, origin_rect.centery))
+        self.target = target_point
+        self.distx = target_point.x - self.rect.x
+        self.disty = target_point.y - self.rect.y
+        self.totalvel = MISSILEVEL + 8
+        self.xvel = np.round(
+            self.totalvel * (self.distx + 1) / (abs(self.distx) + abs(self.disty) + 1)) + random.choice(
+            [1, 0, 0, 0, 0, -1])
+        self.yvel = np.round(
+            self.totalvel * (self.disty + 1) / (abs(self.distx) + abs(self.disty) + 1)) + random.choice(
+            [1, 0, 0, 0, 0, -1])
+        self.frames = 0
+
+    def update(self):
+        self.rect.x += self.xvel
+        self.rect.y += self.yvel
+        if self.rect.x < 0:
+            self.kill()
+            if self.alive():
+                print("Error")
+
+
 class HealthPack(pygame.sprite.Sprite):
     def __init__(self, rect):
         super().__init__()
@@ -150,6 +178,7 @@ class Player(pygame.sprite.Sprite):
         self.frames = 0
         self.radius = 15
         self.health = playerhealth
+        self.originalhealth = playerhealth
         self.chargebar = playermaxcharge
         self.maxcharge = playermaxcharge
         self.chargeframes = 120
@@ -221,6 +250,11 @@ class HealthBar(pygame.sprite.Sprite):
         super().__init__()
         self.origin = origin
         self.originalhealth = self.origin.health
+        try:
+            self.originalhealth = self.origin.originalhealth
+        except AttributeError:
+            pass
+
         self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 5])
         self.image.fill(
             (255 - self.origin.health * 255 / self.originalhealth, 255 * self.origin.health / self.originalhealth, 0))
@@ -248,6 +282,7 @@ class EnemyDefault(pygame.sprite.Sprite):
                                                                     (sswidth, ssheight)), 90)
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
+        self.originalhealth = health
         self.frames = 0
         self.firerate = truefirerate * random.choice([0.5, 1, 1.5, 2, 2, 2, 2, 2.5, 3, 3.5, 4, 4.5, 5])
         self.speed = random.choice([1, 2, 3])
@@ -278,6 +313,8 @@ class EnemyDefaultMissile(pygame.sprite.Sprite):
                                                                     (sswidth, ssheight)), 90)
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
+        self.originalhealth = health
+
         self.frames = 0
         self.speed = random.choice([1, 2, 3])
         self.firerate = truefirerate * 2 * random.choice([3, 3.5, 4, 4.5, 5])
@@ -301,9 +338,36 @@ class EnemyDefaultMissile(pygame.sprite.Sprite):
         self.frames += 1
 
 
+class EnemyTargeted(pygame.sprite.Sprite):
+    def __init__(self, health, truefirerate, startingy):
+        super().__init__()
+        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
+                                                                                                   'spaceship_focused.png')).convert_alpha(),
+                                                                    (sswidth, ssheight)), 0)
+        self.rect = self.image.get_rect(center=(width, startingy))
+        self.health = health
+        self.originalhealth = health
 
+        self.frames = 0
+        self.firerate = truefirerate
+        self.speed = random.choice([1, 2, 3])
 
+    def fire(self):
+        enemybullets.add(TargetedEnemyBullet(self.rect, player.sprite.rect))
 
+    def update(self, player_pos):
+        if self.frames < 50 or self.frames > 600:
+            self.rect.x -= self.speed
+        if self.frames % self.firerate <= 40 and self.frames % 10 == 0:
+            self.fire()
+        if self.health <= 0:
+            self.kill()
+            randnum = np.random.randint(low=1, high=healthpackspawn)
+            if randnum == 2:
+                healthpacks.add(HealthPack(self.rect))
+        if self.rect.x < 0:
+            self.kill()
+        self.frames += 1
 
 
 class Boss(pygame.sprite.Sprite):
@@ -324,6 +388,7 @@ class Boss(pygame.sprite.Sprite):
 
     def missilefire(self):
         enemymissiles.add(EnemyMissile(self.rect))
+        enemybullets.add(TargetedEnemyBullet(self.rect, player.sprite.rect))
 
     def update(self, player_pos):
         if self.rect.y < player_pos.y:
@@ -332,7 +397,8 @@ class Boss(pygame.sprite.Sprite):
             self.rect.y -= OPPVEL
         if self.health <= 0:
             healthpacks.add(HealthPack(self.rect))
-
+            healthpacks.add(HealthPack(self.rect))
+            healthpacks.add(HealthPack(self.rect))
             self.kill()
 
         self.frames += 1
@@ -343,21 +409,21 @@ class Boss(pygame.sprite.Sprite):
 
 
 def newwave(wave):
-    templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
-    for i in range(wave % 13):
-        location = random.choice(templocs)
-        choices = [EnemyDefault(defaultenemyhealth + 5*(wave //13), oppfirerate - 2*(wave // 13), location),
-                   EnemyDefault(defaultenemyhealth+5*(wave//13), oppfirerate - 2*(wave // 13), location),
-                   EnemyDefault(defaultenemyhealth+5*(wave//13), oppfirerate - 2*(wave // 13), location),
-                   EnemyDefaultMissile(defaultenemyhealth+10*(wave//13), oppfirerate - 2*(wave // 13), location)]
-        enemies.add(random.choice(choices))
-        templocs.remove(location)
-    for sprite in enemies:
-        healthbars.add(HealthBar(sprite))
+    pygame.time.set_timer(spawnshipevent, 325, wave % 13)
+
+
+def spawnship(location, wave):
+    choices = [EnemyDefault(defaultenemyhealth + 5 * (wave // 13), oppfirerate - 2 * (wave // 13), location),
+               EnemyDefault(defaultenemyhealth + 5 * (wave // 13), oppfirerate - 2 * (wave // 13), location),
+               EnemyDefault(defaultenemyhealth + 5 * (wave // 13), oppfirerate - 2 * (wave // 13), location),
+               EnemyDefaultMissile(defaultenemyhealth + 10 * (wave // 13), oppfirerate - 2 * (wave // 13),
+                                   location),
+               EnemyTargeted(defaultenemyhealth, oppfirerate * 8, location)]
+    enemies.add(random.choice(choices))
 
 
 def newboss(wave):
-    enemies.add(Boss(500+100*(wave//13), max(oppfirerate - 2*(wave // 13), 1)))
+    enemies.add(Boss(500 + 100 * (wave // 13), max(oppfirerate - 2 * (wave // 13), 1)))
     for sprite in enemies:
         healthbars.add(HealthBar(sprite))
 
@@ -427,7 +493,7 @@ def requires_player_alive(wave, score):
          min(255, player.sprite.health * 255 / playerhealth), 0))
     health_message_rect = health_message.get_rect(center=(300, 30))
     score_message = score_font.render(f'Score: {score}', False, (255, 255, 255))
-    score_message_rect = score_message.get_rect(center=(width-150, 50))
+    score_message_rect = score_message.get_rect(center=(width - 150, 50))
     window.blit(health_message, health_message_rect)
     window.blit(score_message, score_message_rect)
 
@@ -439,15 +505,28 @@ def main():
     paused = False
     score = 0
     wave = 0
+    initialclock = 0
+    templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
     while running:
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == spawnshipevent:
+                initialclock = pygame.time.get_ticks()
+                location = random.choice(templocs)
+                spawnship(location, wave)
+                templocs.remove(location)
+                healthbars.empty()
+                for sprite in enemies:
+                    healthbars.add(HealthBar(sprite))
+                healthbars.add(HealthBar(player.sprite))
+
             if game_active:
                 pass
             else:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    initialclock = pygame.time.get_ticks()
                     game_active = True
                     player.empty()
                     firebar.empty()
@@ -488,13 +567,16 @@ def main():
                 enemies.draw(window)
                 if player.sprite is not None:
                     requires_player_alive(wave, score)
-                if len(enemies.sprites()) == 0:
+                if len(enemies.sprites()) == 0 and pygame.time.get_ticks() > initialclock + 500:
                     score += wave * 20
                     wave += 1
                     if wave % 13 == 0:
                         newboss(wave)
                     else:
+                        initialclock = pygame.time.get_ticks()
+                        templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
                         newwave(wave)
+
                 playerbullets.draw(window)
                 enemybullets.draw(window)
                 enemymissiles.draw(window)
