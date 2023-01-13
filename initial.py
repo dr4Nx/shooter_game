@@ -240,6 +240,10 @@ class SuperFireBar(pygame.sprite.Sprite):
         self.image = pygame.Surface([self.origin.chargebar * 200 / self.origin.maxcharge, 20])
         if self.origin.maxcharge == self.origin.chargebar:
             self.image.fill((255, 255, 100))
+        elif self.origin.chargeframes >= 120:
+            self.image.fill((0, 255, 255))
+        elif self.origin.chargebar < self.origin.maxcharge // 3:
+            self.image.fill((255, 0, 0))
         else:
             self.image.fill((100, 100, 255))
 
