@@ -13,7 +13,7 @@ width, height = 1200, 600
 window = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Space Runner')
 test_font = pygame.font.Font('Fonts/pixel_font.ttf', 50)
-game_font = pygame.font.Font('Fonts/pixel_font.ttf', 10)
+game_font = pygame.font.Font('Fonts/pixel_font.ttf', 15)
 score_font = pygame.font.Font('Fonts/pixel_font.ttf', 20)
 FPS = 60
 VEL = 4
@@ -24,12 +24,13 @@ MISSILEVEL = 1
 sswidth, ssheight = 30, 30
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
-playermaxcharge = 180
+playermaxcharge = 250
 firerate = 15
 defaultdamage = 5
 defaultmissiledamage = 20
 oppfirerate = 30
-default_background = pygame.transform.scale(pygame.image.load('Assets/background.png'), (width, height)).convert_alpha()
+default_background = pygame.transform.scale(pygame.image.load('Assets/background2.jpg'),
+                                            (width, height)).convert_alpha()
 border_color = (50, 0, 0)
 font_color = (200, 200, 250)
 border = pygame.Rect(900, 0, 2, height)
@@ -410,7 +411,7 @@ class Boss(pygame.sprite.Sprite):
         self.health = health
         self.frames = 0
         self.firerate = truefirerate
-        self.missilefirerate = 10 * truefirerate
+        self.missilefirerate = 15 * truefirerate
         healthpacks.add(HealthPack(self.rect))
 
     def fire(self):
@@ -469,7 +470,7 @@ def spawnship(location, wave):
 
 
 def newboss(wave):
-    enemies.add(Boss(500 + 100 * (wave // 13), max(oppfirerate - 2 * (wave // 13), 1)))
+    enemies.add(Boss(300 + 100 * (wave // 13), max(oppfirerate - 2 * (wave // 13), 1)))
     for sprite in enemies:
         healthbars.add(HealthBar(sprite))
 
@@ -533,15 +534,24 @@ def requires_player_alive(wave, score):
     enemymissiles.update(player.sprite.get_player_rect())
     healthbars.update()
 
-    health_message = game_font.render(
-        f'Health: {player.sprite.health} Wave: {wave} [Esc] to pause [Space] to shoot', False,
-        (max(255 - player.sprite.health * 255 / playerhealth, 0),
-         min(255, player.sprite.health * 255 / playerhealth), 0))
-    health_message_rect = health_message.get_rect(center=(300, 30))
+    wave_message = score_font.render(
+        f'Wave: {wave}', False,
+        (255, 255, 255))
+    wave_message_rect = wave_message.get_rect(center=(150, 50))
     score_message = score_font.render(f'Score: {score}', False, (255, 255, 255))
     score_message_rect = score_message.get_rect(center=(width - 150, 50))
+    health_message = game_font.render(
+        f'HP: {player.sprite.health}/{player.sprite.originalhealth}', False, (255, 255, 255)
+    )
+    health_message_rect = health_message.get_rect(topleft=(50, height - 75))
+    super_fire_message = game_font.render(
+        f'Energy: {player.sprite.chargebar}/{player.sprite.maxcharge}', False, (255, 255, 255)
+    )
+    super_fire_rect = super_fire_message.get_rect(topleft=(50, height - 125))
     window.blit(health_message, health_message_rect)
+    window.blit(wave_message, wave_message_rect)
     window.blit(score_message, score_message_rect)
+    window.blit(super_fire_message, super_fire_rect)
 
 
 def main():
@@ -552,7 +562,7 @@ def main():
     score = 0
     wave = 0
     initialclock = 0
-    templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
+    templocs = [20, 60, 100, 140, 180, 220, 260, 300, 340, 380, 420, 460, 500, 540, 580]
     backgroundbars.add(BlankBackgroundA())
     backgroundbars.add(BlankBackgroundB())
     while running:
@@ -568,7 +578,8 @@ def main():
                 healthbars.empty()
                 for sprite in enemies:
                     healthbars.add(HealthBar(sprite))
-                healthbars.add(PlayerHealthBar(player.sprite))
+                if player.sprite is not None:
+                    healthbars.add(PlayerHealthBar(player.sprite))
 
             if game_active:
                 pass
@@ -621,7 +632,7 @@ def main():
                         newboss(wave)
                     else:
                         initialclock = pygame.time.get_ticks()
-                        templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
+                        templocs = [20, 60, 100, 140, 180, 220, 260, 300, 340, 380, 420, 460, 500, 540, 580]
                         newwave(wave)
 
                 playerbullets.draw(window)
