@@ -53,6 +53,7 @@ enemybullets = pygame.sprite.Group()
 tempboss = pygame.sprite.GroupSingle()
 enemies = pygame.sprite.Group()
 healthbars = pygame.sprite.Group()
+backgroundbars = pygame.sprite.Group()
 enemymissiles = pygame.sprite.Group()
 healthpacks = pygame.sprite.Group()
 
@@ -229,20 +230,49 @@ class SuperFireBar(pygame.sprite.Sprite):
     def __init__(self, origin):
         super().__init__()
         self.origin = origin
-        self.image = pygame.Surface([self.origin.chargebar * 80 / self.origin.maxcharge, 8])
+        self.image = pygame.Surface([self.origin.chargebar * 200 / self.origin.maxcharge, 20])
         self.image.fill((100, 100, 255))
         self.rect = self.image.get_rect(
-            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 10))
+            topleft=(50, height - 200))
 
     def update(self):
-        self.image = pygame.Surface([self.origin.chargebar * 80 / self.origin.maxcharge, 8])
+        self.image = pygame.Surface([self.origin.chargebar * 200 / self.origin.maxcharge, 20])
         if self.origin.maxcharge == self.origin.chargebar:
             self.image.fill((255, 255, 100))
         else:
             self.image.fill((100, 100, 255))
 
         self.rect = self.image.get_rect(
-            center=(self.origin.rect.x + self.origin.rect.width / 2, self.origin.rect.y - 20))
+            topleft=(50, height - 100))
+
+
+class PlayerHealthBar(pygame.sprite.Sprite):
+    def __init__(self, origin):
+        super().__init__()
+        self.origin = origin
+        self.originalhealth = self.origin.health
+        try:
+            self.originalhealth = self.origin.originalhealth
+        except AttributeError:
+            pass
+
+        self.image = pygame.Surface([self.origin.health * 200 / self.originalhealth, 20])
+        self.image.fill(
+            (255 - self.origin.health * 255 / self.originalhealth, 255 * self.origin.health / self.originalhealth, 0))
+        self.rect = self.image.get_rect(
+            topleft=(50, height - 50))
+
+    def update(self):
+        if self.origin.health <= 0:
+            self.kill()
+        if self.rect.centerx <= 15:
+            self.kill()
+        else:
+            self.image = pygame.Surface([self.origin.health * 200 / self.originalhealth, 20])
+            self.image.fill((255 - self.origin.health * 255 / self.originalhealth,
+                             255 * self.origin.health / self.originalhealth, 0))
+            self.rect = self.image.get_rect(
+                topleft=(50, height - 50))
 
 
 class HealthBar(pygame.sprite.Sprite):
@@ -408,8 +438,24 @@ class Boss(pygame.sprite.Sprite):
             self.missilefire()
 
 
+class BlankBackgroundA(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface([200, 20])
+        self.image.fill((50, 50, 50))
+        self.rect = self.image.get_rect(topleft=[50, height - 50])
+
+
+class BlankBackgroundB(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface([200, 20])
+        self.image.fill((50, 50, 50))
+        self.rect = self.image.get_rect(topleft=[50, height - 100])
+
+
 def newwave(wave):
-    pygame.time.set_timer(spawnshipevent, 325, wave % 13)
+    pygame.time.set_timer(spawnshipevent, 328, wave % 13)
 
 
 def spawnship(location, wave):
@@ -438,7 +484,7 @@ def detect_player_hits():
         enemy.health -= 5
         return True
     if pygame.sprite.groupcollide(player, enemies, True, True):
-        print('L')
+        pass
 
 
 def detect_opponent_hits():
@@ -507,6 +553,8 @@ def main():
     wave = 0
     initialclock = 0
     templocs = [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560]
+    backgroundbars.add(BlankBackgroundA())
+    backgroundbars.add(BlankBackgroundB())
     while running:
         clock.tick(FPS)
         for event in pygame.event.get():
@@ -520,7 +568,7 @@ def main():
                 healthbars.empty()
                 for sprite in enemies:
                     healthbars.add(HealthBar(sprite))
-                healthbars.add(HealthBar(player.sprite))
+                healthbars.add(PlayerHealthBar(player.sprite))
 
             if game_active:
                 pass
@@ -538,7 +586,7 @@ def main():
                     player.add(Player())
                     firebar.add(SuperFireBar(player.sprite))
                     newwave(1)
-                    healthbars.add(HealthBar(player.sprite))
+                    healthbars.add(PlayerHealthBar(player.sprite))
                     score = 0
                     wave = 1
 
@@ -563,7 +611,6 @@ def main():
                 playerbullets.update()
 
                 player.draw(window)
-                firebar.draw(window)
                 enemies.draw(window)
                 if player.sprite is not None:
                     requires_player_alive(wave, score)
@@ -580,8 +627,11 @@ def main():
                 playerbullets.draw(window)
                 enemybullets.draw(window)
                 enemymissiles.draw(window)
-                healthbars.draw(window)
                 healthpacks.draw(window)
+                backgroundbars.draw(window)
+                firebar.draw(window)
+                healthbars.draw(window)
+
                 if detect_player_hits():
                     score += defaultdamage
                 detect_opponent_hits()
