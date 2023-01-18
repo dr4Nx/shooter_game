@@ -10,7 +10,7 @@ pygame.init()
 spawnshipevent = pygame.USEREVENT + 1
 width, height = 1200, 600
 window = pygame.display.set_mode((width, height))
-pygame.display.set_caption('Space Runner')
+pygame.display.set_caption('Pandemic Punchout')
 test_font = pygame.font.Font('Fonts/pixel_font.ttf', 50)
 game_font = pygame.font.Font('Fonts/pixel_font.ttf', 15)
 score_font = pygame.font.Font('Fonts/pixel_font.ttf', 20)
@@ -20,7 +20,7 @@ DEFAULTBULLETVEL = 8
 DEFAULTOPPBULLETVEL = 8
 OPPVEL = 2
 MISSILEVEL = 1
-sswidth, ssheight = 30, 30
+sswidth, ssheight = 40, 40
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
 playermaxcharge = 250
@@ -28,18 +28,20 @@ firerate = 15
 defaultdamage = 5
 defaultmissiledamage = 20
 oppfirerate = 30
-default_background = pygame.transform.scale(pygame.image.load('Assets/background2.jpg'),
+default_background = pygame.transform.scale(pygame.image.load('Assets/nonblurred_background.jpg'),
+                                            (width, height)).convert_alpha()
+blurred_background = pygame.transform.scale(pygame.image.load('Assets/background_blurred.jpg'),
                                             (width, height)).convert_alpha()
 border_color = (50, 0, 0)
-font_color = (200, 200, 250)
+font_color = (0, 0, 0)
 border = pygame.Rect(900, 0, 2, height)
 playerhealth = 250
 defaultenemyhealth = 15
 healthpackspawn = 15
 
 # Title Screen
-player_title = pygame.image.load('Assets/spaceship_main.png').convert_alpha()
-player_title = pygame.transform.rotozoom(player_title, 270, 2)
+player_title = pygame.image.load('Assets/doctor.png').convert_alpha()
+player_title = pygame.transform.rotozoom(player_title, 0, 0.25)
 
 player_title_rect = player_title.get_rect(center=(600, 100))
 
@@ -61,8 +63,8 @@ healthpacks = pygame.sprite.Group()
 class PlayerBullet(pygame.sprite.Sprite):
     def __init__(self, player_rect):
         super().__init__()
-        self.image = pygame.Surface([15, 3])
-        self.image.fill((100, 100, 255))
+        self.image = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'syringe.png')).convert_alpha(),
+                                   (25, 10))
         self.rect = self.image.get_rect(center=(player_rect.x + 50, player_rect.y + 15))
 
     def update(self):
@@ -173,8 +175,8 @@ class EnemyMissile(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join(
-            'Assets', 'spaceship_main.png')).convert_alpha(), (sswidth, ssheight)), 270)
+        self.image = pygame.transform.scale(pygame.image.load(os.path.join(
+            'Assets', 'doctor.png')).convert_alpha(), (sswidth, ssheight))
         self.rect = self.image.get_rect(center=(400, 300))
         self.frames = 0
         self.radius = 15
@@ -298,7 +300,7 @@ class HealthBar(pygame.sprite.Sprite):
     def update(self):
         if self.origin.health <= 0:
             self.kill()
-        if self.rect.centerx <= 15:
+        if self.rect.centerx <= 25:
             self.kill()
         else:
             self.image = pygame.Surface([self.origin.health * 80 / self.originalhealth, 5])
@@ -539,18 +541,24 @@ def requires_player_alive(wave, score):
 
     wave_message = score_font.render(
         f'Wave: {wave}', False,
-        (255, 255, 255))
+        font_color)
     wave_message_rect = wave_message.get_rect(center=(150, 50))
-    score_message = score_font.render(f'Score: {score}', False, (255, 255, 255))
+    score_message = score_font.render(f'Score: {score}', False, font_color)
     score_message_rect = score_message.get_rect(center=(width - 150, 50))
     health_message = game_font.render(
-        f'HP: {player.sprite.health}/{player.sprite.originalhealth}', False, (255, 255, 255)
+        f'HP: {player.sprite.health}/{player.sprite.originalhealth}', False, font_color
     )
     health_message_rect = health_message.get_rect(topleft=(50, height - 75))
     super_fire_message = game_font.render(
-        f'Energy: {player.sprite.chargebar}/{player.sprite.maxcharge}', False, (255, 255, 255)
+        f'Energy: {player.sprite.chargebar}/{player.sprite.maxcharge}', False, font_color
     )
     super_fire_rect = super_fire_message.get_rect(topleft=(50, height - 125))
+    if wave == 1:
+        instructions_message = game_font.render(
+            '[Esc] to Pause, [Space] to use energy/shoot faster', False, (0, 0, 255)
+        )
+        instructions_rect = instructions_message.get_rect(center=(width/2, 150))
+        window.blit(instructions_message, instructions_rect)
     window.blit(health_message, health_message_rect)
     window.blit(wave_message, wave_message_rect)
     window.blit(score_message, score_message_rect)
@@ -597,6 +605,7 @@ def main():
                     enemymissiles.empty()
                     playerbullets.empty()
                     healthbars.empty()
+                    healthpacks.empty()
                     player.add(Player())
                     firebar.add(SuperFireBar(player.sprite))
                     newwave(1)
@@ -606,10 +615,10 @@ def main():
 
         if game_active:
             if paused:
-                window.blit(default_background, (0, 0))
+                window.blit(blurred_background, (0, 0))
                 pause_message = test_font.render('Press space to continue', False, font_color)
                 pause_message_rect = pause_message.get_rect(center=(600, 300))
-                score_message = test_font.render(f'Your current score: {score}', False, font_color)
+                score_message = test_font.render(f'Score: {score}', False, font_color)
                 score_message_rect = score_message.get_rect(center=(600, 500))
                 window.blit(player_title, player_title_rect)
                 window.blit(pause_message, pause_message_rect)
@@ -657,9 +666,9 @@ def main():
                 game_active = check_player_alive()
                 pygame.display.update()
         else:
-            score_message = test_font.render(f'Your last score: {score}', False, font_color)
+            score_message = test_font.render(f'Score: {score}', False, font_color)
             score_message_rect = score_message.get_rect(center=(600, 500))
-            window.blit(default_background, (0, 0))
+            window.blit(blurred_background, (0, 0))
             window.blit(player_title, player_title_rect)
             window.blit(game_message, game_message_rect)
             window.blit(score_message, score_message_rect)

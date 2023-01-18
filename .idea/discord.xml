@@ -2,7 +2,8 @@
 <project version="4">
   <component name="DiscordProjectSettings">
     <option name="show" value="PROJECT" />
-    <option name="nameOverrideText" value="Your Mother" />
-    <option name="description" value="willl kill a potato PC" />
+    <option name="nameOverrideEnabled" value="true" />
+    <option name="nameOverrideText" value="the game" />
+    <option name="description" value="anticipated release 2025" />
   </component>
 </project>
