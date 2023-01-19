@@ -11,7 +11,8 @@ spawnshipevent = pygame.USEREVENT + 1
 width, height = 1200, 600
 window = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Pandemic Punchout')
-test_font = pygame.font.Font('Fonts/pixel_font.ttf', 50)
+title_font = pygame.font.Font('Fonts/Titlefont.ttf', 100)
+test_font = pygame.font.Font('Fonts/pixel_font.ttf', 40)
 game_font = pygame.font.Font('Fonts/pixel_font.ttf', 15)
 score_font = pygame.font.Font('Fonts/pixel_font.ttf', 20)
 FPS = 60
@@ -23,6 +24,8 @@ MISSILEVEL = 1
 sswidth, ssheight = 40, 40
 bosswidth, bossheight = 50, 50
 missilewidth, missileheight = 20, 20
+squarebulletwidth, squarebulletheight = 15, 15
+rectbulletwidth, rectbulletheight = 20, 8
 playermaxcharge = 250
 firerate = 15
 defaultdamage = 5
@@ -39,11 +42,42 @@ playerhealth = 250
 defaultenemyhealth = 15
 healthpackspawn = 15
 
+defaultenemyimage = pygame.transform.scale(
+            pygame.image.load(os.path.join('Assets', 'default_enemy.png')).convert_alpha(),
+            (sswidth, ssheight))
+targetedenemyimage = pygame.transform.scale(
+            pygame.image.load(os.path.join('Assets', 'focused_enemy.png')).convert_alpha(),
+            (sswidth, ssheight))
+missilenemyimage = pygame.transform.scale(pygame.image.load(os.path.join('Assets',
+                                                                           'missile_enemy.png')).convert_alpha(),
+                                            (sswidth, ssheight))
+
+healthpackimage = pygame.transform.rotate(
+    pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'healthpack.png')).convert_alpha(),
+                           (missilewidth, missileheight)), 90)
+
+targetedbulletimage = pygame.transform.scale(
+    pygame.image.load(os.path.join('Assets', 'targeted_bullet.png')).convert_alpha(),
+    (squarebulletwidth, squarebulletheight))
+missileidleimage = pygame.transform.scale(pygame.image.load(os.path.join(
+            'Assets', 'idle_missile_bullet.png')).convert_alpha(), (missilewidth, missileheight))
+missileactiveimage = pygame.transform.scale(pygame.image.load(os.path.join(
+                'Assets', 'active_missile_bullet.png')).convert_alpha(), (missilewidth, missileheight))
+
+rectbulletblue = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'blue_rect_bullet.png')).convert_alpha(), (rectbulletwidth, rectbulletheight))
+rectbulletgreen = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'green_rect_bullet.png')).convert_alpha(), (rectbulletwidth, rectbulletheight))
+rectbulletred = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'red_rect_bullet.png')).convert_alpha(), (rectbulletwidth, rectbulletheight))
+rectbulletorange = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'orange_rect_bullet.png')).convert_alpha(), (rectbulletwidth, rectbulletheight))
+
+
 # Title Screen
 player_title = pygame.image.load('Assets/doctor.png').convert_alpha()
 player_title = pygame.transform.rotozoom(player_title, 0, 0.25)
 
-player_title_rect = player_title.get_rect(center=(600, 100))
+player_title_rect = player_title.get_rect(center=(150, 150))
+
+title_title = title_font.render('Pandemic Punchout', False, font_color)
+title_title_rect = title_title.get_rect(center=(700, 150))
 
 game_message = test_font.render('Press space to begin', False, font_color)
 game_message_rect = game_message.get_rect(center=(600, 300))
@@ -64,7 +98,7 @@ class PlayerBullet(pygame.sprite.Sprite):
     def __init__(self, player_rect):
         super().__init__()
         self.image = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'syringe.png')).convert_alpha(),
-                                   (25, 10))
+                                            (25, 10))
         self.rect = self.image.get_rect(center=(player_rect.x + 50, player_rect.y + 15))
 
     def update(self):
@@ -78,8 +112,7 @@ class PlayerBullet(pygame.sprite.Sprite):
 class StandardEnemyBullet(pygame.sprite.Sprite):
     def __init__(self, origin_rect):
         super().__init__()
-        self.image = pygame.Surface([15, 3])
-        self.image.fill((255, 100, 100))
+        self.image = random.choice([rectbulletorange, rectbulletred, rectbulletblue, rectbulletgreen])
         self.rect = self.image.get_rect(center=(origin_rect.x - 20, origin_rect.y + origin_rect.height / 2))
 
     def update(self):
@@ -93,8 +126,7 @@ class StandardEnemyBullet(pygame.sprite.Sprite):
 class TargetedEnemyBullet(pygame.sprite.Sprite):
     def __init__(self, origin_rect, target_point):
         super().__init__()
-        self.image = pygame.Surface([10, 10])
-        self.image.fill((255, 100, 100))
+        self.image = targetedbulletimage
         self.rect = self.image.get_rect(center=(origin_rect.x - 15, origin_rect.centery))
         self.target = target_point
         self.distx = target_point.x - self.rect.x
@@ -120,9 +152,7 @@ class TargetedEnemyBullet(pygame.sprite.Sprite):
 class HealthPack(pygame.sprite.Sprite):
     def __init__(self, rect):
         super().__init__()
-        self.image = pygame.transform.rotate(
-            pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'healthpack.png')).convert_alpha(),
-                                   (missilewidth, missileheight)), 90)
+        self.image = healthpackimage
         self.rect = self.image.get_rect(center=(rect.centerx, rect.centery))
 
     def update(self):
@@ -134,8 +164,7 @@ class HealthPack(pygame.sprite.Sprite):
 class EnemyMissile(pygame.sprite.Sprite):
     def __init__(self, origin_rect):
         super().__init__()
-        self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
-            'Assets', 'idlemissile.png')).convert_alpha(), (missilewidth, missileheight))
+        self.image = missileidleimage
         self.rect = self.image.get_rect(center=(origin_rect.centerx, origin_rect.centery))
         self.moves = 0
         self.distx = 0
@@ -161,12 +190,10 @@ class EnemyMissile(pygame.sprite.Sprite):
             self.totalvel += 0.5
             self.xvel -= 0.5
         if 50 < self.frames < 200:
-            self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
-                'Assets', 'activemissile.png')).convert_alpha(), (missilewidth, missileheight))
+            self.image = missileactiveimage
             self.rotate(player_loc)
         else:
-            self.image = self.image = pygame.transform.scale(pygame.image.load(os.path.join(
-                'Assets', 'idlemissile.png')).convert_alpha(), (missilewidth, missileheight))
+            self.image = missileidleimage
         self.move()
         if self.frames > 500:
             self.kill()
@@ -313,9 +340,7 @@ class HealthBar(pygame.sprite.Sprite):
 class EnemyDefault(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate, startingy):
         super().__init__()
-        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
-                                                                                                   'spaceship_default_opponent.png')).convert_alpha(),
-                                                                    (sswidth, ssheight)), 90)
+        self.image = defaultenemyimage
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
         self.originalhealth = health
@@ -344,9 +369,7 @@ class EnemyDefault(pygame.sprite.Sprite):
 class EnemyDefaultMissile(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate, startingy):
         super().__init__()
-        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
-                                                                                                   'spaceship_missile.png')).convert_alpha(),
-                                                                    (sswidth, ssheight)), 90)
+        self.image = missilenemyimage
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
         self.originalhealth = health
@@ -377,9 +400,7 @@ class EnemyDefaultMissile(pygame.sprite.Sprite):
 class EnemyTargeted(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate, startingy):
         super().__init__()
-        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
-                                                                                                   'spaceship_focused.png')).convert_alpha(),
-                                                                    (sswidth, ssheight)), 0)
+        self.image = targetedenemyimage
         self.rect = self.image.get_rect(center=(width, startingy))
         self.health = health
         self.originalhealth = health
@@ -409,9 +430,8 @@ class EnemyTargeted(pygame.sprite.Sprite):
 class Boss(pygame.sprite.Sprite):
     def __init__(self, health, truefirerate):
         super().__init__()
-        self.image = pygame.transform.rotate(pygame.transform.scale(pygame.image.load(os.path.join('Assets',
-                                                                                                   'spaceship_default_opponent.png')).convert_alpha(),
-                                                                    (bosswidth, bossheight)), 90)
+        self.image = pygame.transform.scale(pygame.image.load(os.path.join('Assets', 'covid_boss.png')).convert_alpha(),
+                                            (bosswidth, bossheight))
         self.rect = self.image.get_rect(center=(1100, 300))
         self.health = health
         self.frames = 0
@@ -557,7 +577,7 @@ def requires_player_alive(wave, score):
         instructions_message = game_font.render(
             '[Esc] to Pause, [Space] to use energy/shoot faster', False, (0, 0, 255)
         )
-        instructions_rect = instructions_message.get_rect(center=(width/2, 150))
+        instructions_rect = instructions_message.get_rect(center=(width / 2, 150))
         window.blit(instructions_message, instructions_rect)
     window.blit(health_message, health_message_rect)
     window.blit(wave_message, wave_message_rect)
@@ -621,6 +641,7 @@ def main():
                 score_message = test_font.render(f'Score: {score}', False, font_color)
                 score_message_rect = score_message.get_rect(center=(600, 500))
                 window.blit(player_title, player_title_rect)
+                window.blit(title_title, title_title_rect)
                 window.blit(pause_message, pause_message_rect)
                 window.blit(score_message, score_message_rect)
                 pygame.display.update()
@@ -670,6 +691,8 @@ def main():
             score_message_rect = score_message.get_rect(center=(600, 500))
             window.blit(blurred_background, (0, 0))
             window.blit(player_title, player_title_rect)
+            window.blit(title_title, title_title_rect)
+
             window.blit(game_message, game_message_rect)
             window.blit(score_message, score_message_rect)
             pygame.display.update()
