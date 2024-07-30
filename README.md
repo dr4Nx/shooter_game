@@ -1,3 +1,3 @@
 # shooter_game
 
-Personal thing
+Python shooter game. Personal project using the pygame library, and contains original code and art.
